@@ -1,5 +1,12 @@
 from fastapi import FastAPI, status
 from pydantic import BaseModel
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+import json
+
+load_dotenv()  # Load environment variables from .env file
+genai.configure(api_key=os.getenv("AI_API_KEY"))
 
 app = FastAPI()
 
@@ -29,11 +36,28 @@ class TicketResponse(BaseModel):
 @app.post("/api/v1/triage", status_code=status.HTTP_200_OK)
 async def triage_ticket(ticket: TicketRequest):
     """
-    Endpoint to process a ticket and return an AI-based triage (Mocked).
+    Endpoint to process a ticket and return an AI-based triage.
     """
-    triage_response = TicketResponse(
-        category="Technical",
-        urgency="High",
-        suggested_action="Please address this issue immediately."
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Using an f-string to inject the ticket description directly into the prompt
+    prompt = f"""
+    Act as an expert IT support triage analyst.
+    Analyze the following ticket description.
+    Return strictly a JSON object with these exact keys: "category", "urgency", and "suggested_action".
+    Do not include markdown formatting or any other text.
+    
+    Ticket Description: {ticket.description}
+    """
+    
+    # We force the AI to return a clean JSON format
+    response = model.generate_content(
+        prompt,
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json"
+        )
     )
-    return triage_response
+    
+    triage_data = json.loads(response.text)
+    
+    return TicketResponse(**triage_data)
