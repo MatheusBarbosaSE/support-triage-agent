@@ -16,3 +16,7 @@ __pycache__/
 
 # Git
 .git/
+
+# Database
+*.db
+*.sqlite3
